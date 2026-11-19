@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFF8D5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Аліас">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<script>document.documentElement.className='js';</script>
+<title>Аліас — гра в слова українською</title>
+<style>
+.nojs{position:fixed;left:16px;right:16px;bottom:24px;z-index:999;padding:16px;border-radius:18px;background:#441910;color:#FFF8D5;font:700 15px/1.4 -apple-system,system-ui,sans-serif;text-align:center}
+html.js .nojs{display:none}
+/* ===== Базова палітра ===== */
+:root{
+  --sea:#E098AC; --beet:#68002C; --crystal:#A6C9DD; --lemon:#FFF8D5; --rum:#441910;
+  /* Значення тем задаються з JS (THEMES), а кольори тексту --on-* обчислюються автоматично за контрастністю */
+  --bg:#FFF8D5; --on-bg:#441910; --on-bg-rgb:68,25,16;
+  --radius:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+  position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100vh;height:-webkit-fill-available;height:100dvh;
+  background:var(--bg);color:var(--on-bg);
+  font-family:"Nunito","Manrope","Segoe UI",Roboto,system-ui,-apple-system,sans-serif;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;
+  transition:background-color .3s,color .3s;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+#app{position:relative;height:100%;max-width:520px;margin:0 auto;overflow:hidden}
+
+/* ===== Екрани ===== */
+.screen{
+  position:absolute;top:0;right:0;bottom:0;left:0;display:none;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 14px) 20px calc(env(safe-area-inset-bottom) + 18px);
+}
+.screen.active{display:flex;animation:fadeIn .28s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.head{display:flex;flex-direction:column;justify-content:center;gap:4px;min-height:56px;padding-right:64px;margin-bottom:6px}
+.head h2{font-size:1.6rem;font-weight:900;line-height:1.1}
+.step{font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.65}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;gap:20px;padding:16px 0}
+.body.scroll{padding:16px 12px;margin-inline:-12px}
+.foot{display:flex;gap:12px;padding-top:12px}
+.foot .btn{flex:1;min-width:0}
+.foot .btn.back{flex:0 0 auto;padding-inline:20px}
+.label{font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;opacity:.7;margin:6px 0 -6px}
+.muted{opacity:.7}
+
+/* скрол лише всередині контейнерів, сам екран не прокручується */
+.scroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ===== Кнопки ===== */
+.btn{
+  appearance:none;border:0;border-radius:18px;min-height:54px;padding:14px 20px;
+  font-weight:800;font-size:1.05rem;background:var(--surface);color:var(--on-surface);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  max-width:100%;min-width:0;white-space:normal;text-align:center;line-height:1.2;overflow-wrap:anywhere;
+  transition:transform .1s,opacity .2s,background-color .2s;box-shadow:0 3px 0 rgba(0,0,0,.12);
+}
+.btn:active{transform:translateY(2px) scale(.98);box-shadow:none}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-big{font-size:1.35rem;min-height:72px;border-radius:26px}
+.btn-ghost{background:transparent;color:var(--on-bg);box-shadow:inset 0 0 0 2px rgba(var(--on-bg-rgb),.28)}
+.btn-good{background:var(--good);color:var(--on-good)}
+.btn-bad{background:var(--bad);color:var(--on-bad)}
+.btn[disabled]{opacity:.38;pointer-events:none}
+.icon-btn{
+  width:50px;height:50px;border-radius:50%;border:0;flex:none;display:grid;place-items:center;
+  background:rgba(var(--on-bg-rgb),.1);color:var(--on-bg);transition:transform .1s;
+}
+.icon-btn:active{transform:scale(.92)}
+#gearBtn{position:absolute;top:calc(env(safe-area-inset-top) + 14px);right:16px;z-index:40}
+body[data-screen="game"] #gearBtn{display:none}
+
+/* ===== Перемикач ===== */
+.toggle{width:60px;height:36px;border-radius:20px;border:0;flex:none;position:relative;background:rgba(var(--on-bg-rgb),.22);transition:background-color .2s}
+.toggle::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:var(--bg);box-shadow:0 2px 4px rgba(0,0,0,.25);transition:transform .2s,background-color .2s}
+.toggle[aria-pressed="true"]{background:var(--accent)}
+.toggle[aria-pressed="true"]::after{transform:translateX(24px);background:var(--on-accent)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;border-radius:18px;background:rgba(var(--on-bg-rgb),.07)}
+.setting-row b{display:block;font-size:1.05rem}
+.setting-row small{display:block;opacity:.7;font-size:.82rem;margin-top:2px}
+
+/* ===== Splash ===== */
+#s-splash{align-items:center;justify-content:center;text-align:center;gap:22px}
+.logo{width:170px;height:170px;position:relative}
+.logo span{position:absolute;border-radius:50%;display:grid;place-items:center}
+.logo .b1{width:96px;height:96px;left:0;top:6px;background:var(--sea);animation:float 3s ease-in-out infinite}
+.logo .b2{width:84px;height:84px;right:0;bottom:4px;background:var(--crystal);animation:float 3s ease-in-out .6s infinite}
+.logo .b3{width:118px;height:118px;left:26px;top:26px;background:var(--primary);color:var(--on-primary);font-weight:900;font-size:4.4rem;box-shadow:0 0 0 6px var(--bg)}
+@keyframes float{50%{transform:translateY(-7px)}}
+.title{font-size:2.6rem;font-weight:900;letter-spacing:.04em}
+.subtitle{font-weight:700;opacity:.75}
+.tap-hint{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 30px);left:0;right:0;font-size:.85rem;opacity:.55;animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.2}}
+
+/* ===== Меню ===== */
+#s-menu .body{justify-content:center;align-items:stretch;gap:18px}
+.menu-hero{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:26px;text-align:center}
+.menu-hero .logo{transform:scale(.72);margin:-24px 0}
+.version{text-align:center;font-size:.75rem;opacity:.45}
+
+/* ===== Команди ===== */
+.stepper{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:20px;background:rgba(var(--on-bg-rgb),.07)}
+.stepper .num{font-size:2rem;font-weight:900;min-width:60px;text-align:center}
+.stepper .icon-btn{background:var(--surface);color:var(--on-surface);font-size:1.6rem;font-weight:900}
+.team-list{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;padding:8px 12px;margin-inline:-12px}
+.team-row{display:flex;align-items:center;gap:10px}
+.dot{width:18px;height:18px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(var(--on-bg-rgb),.35)}
+.input{
+  flex:1;min-width:0;height:52px;border-radius:16px;border:2px solid transparent;padding:0 16px;font-weight:800;font-size:1.05rem;
+  background:var(--surface);color:var(--on-surface);outline:none;-webkit-user-select:text;user-select:text;
+}
+.input:focus{border-color:var(--accent)}
+.input::placeholder{color:var(--on-surface);opacity:.5}
+.dice{background:var(--surface2);color:var(--on-surface2);font-size:1.4rem}
+
+/* ===== Параметри ===== */
+.param{padding:18px 16px;border-radius:20px;background:rgba(var(--on-bg-rgb),.07);display:flex;flex-direction:column;gap:14px}
+.param-top{display:flex;justify-content:space-between;align-items:baseline}
+.param-top b{font-size:1.05rem}
+.param-val{font-size:1.5rem;font-weight:900;padding:2px 12px;border-radius:12px;background:var(--surface);color:var(--on-surface)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:36px;background:transparent;touch-action:pan-x}
+input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:6px;background:linear-gradient(to right,var(--accent) var(--fill,50%),rgba(var(--on-bg-rgb),.18) var(--fill,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;margin-top:-10px;background:var(--primary);border:4px solid var(--bg);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+input[type=range]::-moz-range-track{height:10px;border-radius:6px;background:rgba(var(--on-bg-rgb),.18)}
+input[type=range]::-moz-range-progress{height:10px;border-radius:6px;background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--primary);border:4px solid var(--bg)}
+.range-scale{display:flex;justify-content:space-between;font-size:.75rem;opacity:.55;font-weight:700;margin-top:-6px}
+
+/* ===== Вибір (категорії / рівні / теми) ===== */
+.choice{
+  border:0;text-align:left;border-radius:20px;padding:14px 16px;background:var(--surface);color:var(--on-surface);
+  display:flex;align-items:center;gap:14px;position:relative;transition:transform .12s,background-color .2s,box-shadow .2s;
+  box-shadow:0 3px 0 rgba(0,0,0,.12);
+}
+.choice:active{transform:scale(.98)}
+.choice .ico{font-size:1.9rem;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.35);flex:none}
+.choice b{display:block;font-size:1.12rem}
+.choice small{display:block;font-size:.8rem;opacity:.75;margin-top:2px}
+.choice[aria-checked="true"]{background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--on-bg)}
+.choice[aria-checked="true"]::after{
+  content:"✓";position:absolute;top:-8px;right:-6px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  font-weight:900;background:var(--on-bg);color:var(--bg);font-size:.95rem;
+}
+.cat-list{display:flex;flex-direction:column;gap:14px}
+.level-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.level-row .choice{flex-direction:column;justify-content:center;text-align:center;gap:6px;padding:14px 6px}
+.lvl-dots{display:flex;gap:4px}
+.lvl-dots i{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.25}
+.lvl-dots i.on{opacity:1}
+
+/* ===== Лобі ===== */
+.round-badge{display:inline-block;align-self:flex-start;padding:6px 14px;border-radius:999px;background:var(--surface2);color:var(--on-surface2);font-weight:900;font-size:.9rem}
+.rank{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;padding:10px 12px;margin-inline:-12px}
+.rank-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--surface);color:var(--on-surface);position:relative}
+.rank-item.now{background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--on-bg)}
+.rank-pos{font-weight:900;font-size:1.1rem;width:26px;text-align:center}
+.rank-name{flex:1;min-width:0;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-name small{display:block;font-size:.72rem;font-weight:800;opacity:.75;text-transform:uppercase;letter-spacing:.05em}
+.rank-score{font-weight:900;font-size:1.5rem;min-width:44px;text-align:right}
+.rank-bar{position:absolute;left:14px;right:14px;bottom:6px;height:3px;border-radius:2px;background:rgba(0,0,0,.12);overflow:hidden}
+.rank-bar i{display:block;height:100%;background:currentColor;opacity:.55}
+.ready-card{padding:16px;border-radius:22px;background:rgba(var(--on-bg-rgb),.08);text-align:center}
+.ready-card .who{font-size:1.5rem;font-weight:900;margin-top:4px;word-break:break-word}
+.chips{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{padding:5px 11px;border-radius:999px;font-size:.78rem;font-weight:800;background:var(--surface2);color:var(--on-surface2)}
+
+/* ===== Гра ===== */
+#s-game{padding-bottom:calc(env(safe-area-inset-bottom) + 14px)}
+.game-top{display:flex;align-items:center;justify-content:space-between;min-height:52px}
+.counter{padding:10px 18px;border-radius:999px;font-weight:900;font-size:1.05rem}
+.counter.good{background:var(--good);color:var(--on-good)}
+.counter.bad{background:var(--bad);color:var(--on-bad)}
+.game-mid{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;gap:clamp(14px,2.8vh,26px);gap:clamp(14px,2.8dvh,26px)}
+.act{width:100%;max-width:360px;min-height:58px;font-size:1.1rem}
+.circle-wrap{width:260px;height:260px;width:min(80vw,42vh,350px);height:min(80vw,42vh,350px);width:min(80vw,44dvh,350px);height:min(80vw,44dvh,350px);position:relative;flex:none}
+.word-card{
+  position:absolute;top:0;right:0;bottom:0;left:0;border-radius:50%;background:var(--circle);color:var(--on-circle);
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:13%;touch-action:none;cursor:grab;-webkit-touch-callout:none;
+  box-shadow:0 0 0 9px var(--ring),0 20px 44px rgba(0,0,0,.25);
+  transition:transform .2s ease,opacity .2s ease;will-change:transform;
+}
+.word-card.dragging{transition:none;cursor:grabbing}
+.word-card.no-anim{transition:none!important}
+.word-card.fly-up{transform:translateY(-130%) scale(.75) rotate(-6deg)!important;opacity:0}
+.word-card.fly-down{transform:translateY(130%) scale(.75) rotate(6deg)!important;opacity:0}
+.word-card.enter{animation:pop .26s ease}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.word{font-weight:900;line-height:1.08;text-transform:uppercase;overflow-wrap:anywhere;hyphens:auto;letter-spacing:-.01em}
+.tint{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .1s;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.6rem}
+.tint.g{background:var(--good);color:var(--on-good)}
+.tint.s{background:var(--bad);color:var(--on-bad)}
+.swipe-hint{font-size:.78rem;font-weight:700;opacity:.55;text-align:center}
+.game-bottom{display:flex;flex-direction:column;gap:14px;padding-top:8px}
+.gb-row{display:flex;align-items:center;justify-content:space-between}
+.timer{font-size:2.6rem;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.timer.low{color:var(--bad-on-bg);animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.bar{height:14px;border-radius:8px;background:rgba(var(--on-bg-rgb),.15);overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left center;border-radius:8px}
+.bar.low i{background:var(--bad-on-bg)}
+
+/* ===== Результат ходу ===== */
+.res-head{text-align:center;padding:4px 0}
+.res-team{font-size:1.25rem;font-weight:900;word-break:break-word}
+.res-score{font-size:4rem;font-weight:900;line-height:1.05;transition:transform .15s}
+.res-score.bump{transform:scale(1.15)}
+.res-stats{font-size:.88rem;font-weight:700;opacity:.75}
+.words{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;padding:6px 12px;margin-inline:-12px}
+.wrow{
+  border:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;
+  background:rgba(var(--on-bg-rgb),.07);color:var(--on-bg);text-align:left;font-weight:800;font-size:1.05rem;
+}
+.wrow span:first-child{flex:1;min-width:0;overflow-wrap:anywhere}
+.pill{flex:none;padding:7px 12px;border-radius:999px;font-size:.82rem;font-weight:900;white-space:nowrap}
+.pill.g{background:var(--good);color:var(--on-good)}
+.pill.s{background:var(--bad);color:var(--on-bad)}
+.pill.o{background:var(--surface2);color:var(--on-surface2)}
+.pill.n{background:rgba(var(--on-bg-rgb),.18);color:var(--on-bg)}
+.wrow.last{box-shadow:inset 0 0 0 2px rgba(var(--on-bg-rgb),.3)}
+.wrow small{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;opacity:.65}
+.hint-line{font-size:.8rem;text-align:center;opacity:.6;font-weight:700}
+
+/* ===== Перемога ===== */
+#s-win{text-align:center}
+.trophy{font-size:4rem;line-height:1;animation:float 2.4s ease-in-out infinite}
+.win-name{font-size:1.9rem;font-weight:900;word-break:break-word}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;flex:1;min-height:0;max-height:300px}
+.pod{flex:1;max-width:120px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pod .pname{font-weight:800;font-size:.9rem;line-height:1.15;word-break:break-word}
+.pod .pscore{font-weight:900;font-size:1.1rem}
+.pod .col{width:100%;border-radius:16px 16px 6px 6px;display:grid;place-items:start center;padding-top:10px;font-weight:900;font-size:2rem;animation:grow .7s cubic-bezier(.2,.9,.3,1.2) both}
+.pod.p1 .col{height:150px;background:var(--primary);color:var(--on-primary)}
+.pod.p2 .col{height:110px;background:var(--surface);color:var(--on-surface);animation-delay:.15s}
+.pod.p3 .col{height:80px;background:var(--surface2);color:var(--on-surface2);animation-delay:.3s}
+@keyframes grow{from{transform:scaleY(0);transform-origin:bottom}to{transform:scaleY(1);transform-origin:bottom}}
+.others{font-size:.85rem;font-weight:700;opacity:.75}
+.confetti{position:fixed;top:0;right:0;bottom:0;left:0;pointer-events:none;overflow:hidden;z-index:30}
+.confetti i{position:absolute;top:-20px;width:10px;height:16px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+/* ===== Модальні вікна ===== */
+.modal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:100;display:none;align-items:flex-end;justify-content:center;background:rgba(25,8,5,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.modal.open{display:flex;animation:fade .2s}
+.modal.center{align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+@keyframes fade{from{opacity:0}}
+.sheet{
+  width:100%;max-width:520px;max-height:90vh;max-height:90dvh;background:var(--bg);color:var(--on-bg);
+  border-radius:28px 28px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 20px);
+  display:flex;flex-direction:column;gap:18px;animation:up .26s cubic-bezier(.2,.9,.3,1.1);
+}
+.modal.center .sheet{border-radius:28px;padding:24px 20px;max-width:440px;max-height:100%;overflow-y:auto;overscroll-behavior:contain;margin:auto}
+.sheet > *{flex-shrink:0}
+.sheet .rules{flex-shrink:1;min-height:0}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sheet-head h3{font-size:1.4rem;font-weight:900}
+.theme-list{display:flex;flex-direction:column;gap:14px;padding:6px}
+.theme-opt{border:0;display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:18px;text-align:left;position:relative}
+.theme-opt[aria-checked="true"]{box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--accent)}
+.theme-opt[aria-checked="true"]::after{content:"✓";position:absolute;right:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:900;background:var(--accent);color:var(--on-accent)}
+.theme-opt b{display:block;font-size:1.05rem}
+.theme-opt small{display:block;font-size:.8rem;opacity:.75}
+.sw{display:flex;flex:none}
+.sw i{width:22px;height:22px;border-radius:50%;margin-left:-7px;box-shadow:0 0 0 2px rgba(0,0,0,.15)}
+.sw i:first-child{margin-left:0}
+.rules{display:flex;flex-direction:column;gap:16px;font-size:.98rem;line-height:1.45;-webkit-user-select:text;user-select:text}
+.rules h4{font-size:1.02rem;font-weight:900;margin-bottom:2px}
+.rules ul{padding-left:20px}
+.rules li{margin:3px 0}
+.lw-word{text-transform:uppercase;margin:6px auto;padding:20px 26px;border-radius:999px;background:var(--circle);color:var(--on-circle);font-size:1.7rem;font-weight:900;text-align:center;box-shadow:0 0 0 6px var(--ring);overflow-wrap:anywhere}
+.lw-btns{display:flex;flex-direction:column;gap:12px}
+.lw-sub{font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;opacity:.65;margin-top:4px}
+.center-text{text-align:center}
+
+/* ===== Відлік, тост, поворот ===== */
+#countdown{position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--bg);color:var(--on-bg)}
+#countdown.open{display:flex}
+#countdown b{font-size:9rem;font-weight:900;line-height:1}
+#countdown b.go{animation:cd .8s ease}
+@keyframes cd{from{transform:scale(1.8);opacity:0}30%{transform:scale(1);opacity:1}}
+#countdown span{font-weight:800;opacity:.7;font-size:1.1rem;text-align:center;padding:0 20px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translate(-50%,20px);z-index:200;opacity:0;pointer-events:none;
+  background:var(--on-bg);color:var(--bg);padding:12px 18px;border-radius:16px;font-weight:800;font-size:.92rem;max-width:88vw;text-align:center;transition:.25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#rotate{position:fixed;top:0;right:0;bottom:0;left:0;z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg);color:var(--on-bg);text-align:center;padding:24px;font-weight:800}
+#rotate .ph{font-size:3.5rem;animation:rot 2s ease-in-out infinite}
+@keyframes rot{50%{transform:rotate(-90deg)}}
+@media (orientation:landscape) and (max-height:520px){#rotate{display:flex}}
+@media (max-height:620px){
+  .btn-big{min-height:60px}
+  .choice{padding:10px 14px}.choice .ico{width:40px;height:40px;font-size:1.5rem}
+  .timer{font-size:2.1rem}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body data-screen="splash">
+<div class="nojs">⚠️ Гра не запускається в режимі перегляду файлу.<br>Відкрийте посилання на гру в Safari, а потім «Поділитися» → «На початковий екран».</div>
+<div id="app">
+
+  <!-- Глобальна кнопка налаштувань -->
+  <button id="gearBtn" class="icon-btn" aria-label="Налаштування">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+
+  <!-- Екран 1: Splash -->
+  <section class="screen active" id="s-splash">
+    <div class="logo"><span class="b1"></span><span class="b2"></span><span class="b3">А</span></div>
+    <div>
+      <div class="title">АЛІАС</div>
+      <div class="subtitle">Поясни, але не називай!</div>
+    </div>
+    <div class="tap-hint">Торкніться, щоб почати</div>
+  </section>
+
+  <!-- Екран 2: Головне меню -->
+  <section class="screen" id="s-menu">
+    <div class="head"></div>
+    <div class="body">
+      <div class="menu-hero">
+        <div class="logo"><span class="b1"></span><span class="b2"></span><span class="b3">А</span></div>
+        <div class="title">АЛІАС</div>
+        <div class="subtitle">Командна гра в слова українською</div>
+      </div>
+      <button class="btn btn-good btn-big" id="continueBtn" hidden>▶ Продовжити гру</button>
+      <button class="btn btn-primary btn-big" id="startBtn">Старт гри</button>
+      <button class="btn" id="rulesBtn">📖 Правила</button>
+    </div>
+    <div class="version">Український Аліас · v1.0</div>
+  </section>
+
+  <!-- Екран 3: Команди -->
+  <section class="screen" id="s-teams">
+    <div class="head"><div class="step">Крок 1 з 3</div><h2>Команди</h2></div>
+    <div class="body">
+      <div class="stepper">
+        <button class="icon-btn" id="teamMinus" aria-label="Менше команд">−</button>
+        <div class="center-text"><div class="num" id="teamCount">2</div><div class="label" id="teamWord" style="margin:0">команди</div></div>
+        <button class="icon-btn" id="teamPlus" aria-label="Більше команд">+</button>
+      </div>
+      <div class="team-list scroll" id="teamList"></div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost back" data-go="menu" aria-label="Назад">←</button>
+      <button class="btn btn-primary" id="teamsNext">Далі</button>
+    </div>
+  </section>
+
+  <!-- Екран 4: Параметри -->
+  <section class="screen" id="s-params">
+    <div class="head"><div class="step">Крок 2 з 3</div><h2>Параметри гри</h2></div>
+    <div class="body scroll">
+      <div class="param">
+        <div class="param-top"><b>Бали для перемоги</b><span class="param-val" id="targetVal">30</span></div>
+        <input type="range" id="targetRange" min="10" max="100" step="5" value="30" aria-label="Бали для перемоги">
+        <div class="range-scale"><span>10</span><span>100</span></div>
+      </div>
+      <div class="param">
+        <div class="param-top"><b>Час на хід</b><span class="param-val" id="timeVal">60 с</span></div>
+        <input type="range" id="timeRange" min="20" max="120" step="10" value="60" aria-label="Час на хід">
+        <div class="range-scale"><span>20 с</span><span>120 с</span></div>
+      </div>
+      <div class="setting-row">
+        <div><b>Штраф за пропуск</b><small>Кожне пропущене слово −1 бал</small></div>
+        <button class="toggle" id="penaltyToggle" aria-pressed="false" aria-label="Штраф за пропуск"></button>
+      </div>
+      <div class="setting-row">
+        <div><b>Звук</b><small>Синхронізовано із загальними налаштуваннями</small></div>
+        <button class="toggle" data-setting="sound" aria-pressed="true" aria-label="Звук"></button>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost back" data-go="teams" aria-label="Назад">←</button>
+      <button class="btn btn-primary" id="paramsNext">Далі</button>
+    </div>
+  </section>
+
+  <!-- Екран 5: Категорія та складність -->
+  <section class="screen" id="s-cat">
+    <div class="head"><div class="step">Крок 3 з 3</div><h2>Слова</h2></div>
+    <div class="body scroll">
+      <div class="label">Категорія</div>
+      <div class="cat-list" id="catList" role="radiogroup" aria-label="Категорія"></div>
+      <div class="label">Складність</div>
+      <div class="level-row" id="levelList" role="radiogroup" aria-label="Складність"></div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost back" data-go="params" aria-label="Назад">←</button>
+      <button class="btn btn-primary" id="catNext" disabled>Далі</button>
+    </div>
+  </section>
+
+  <!-- Екран 6: Лобі раунду -->
+  <section class="screen" id="s-lobby">
+    <div class="head"><h2 id="lobbyRound">Раунд 1</h2><div class="step" id="lobbyGoal">Мета: 30 балів</div></div>
+    <div class="body">
+      <div class="rank scroll" id="rankList"></div>
+      <div class="ready-card">
+        <div class="label">Готується команда</div>
+        <div class="who" id="lobbyTeam">—</div>
+        <div class="chips" id="lobbyChips"></div>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost back" id="lobbyHome" aria-label="Головне меню">⌂</button>
+      <button class="btn btn-primary btn-big" id="lobbyStart">Старт</button>
+    </div>
+  </section>
+
+  <!-- Екран 7: Активний хід -->
+  <section class="screen" id="s-game">
+    <div class="game-top">
+      <div class="counter good">Вгадано: <span id="gCount">0</span></div>
+      <button class="icon-btn" id="pauseBtn" aria-label="Пауза">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.5"/><rect x="14" y="4" width="4" height="16" rx="1.5"/></svg>
+      </button>
+    </div>
+    <div class="game-mid">
+      <button class="btn btn-good act" id="btnGood">↑ Вгадано</button>
+      <div class="circle-wrap">
+        <div class="word-card" id="wordCard" aria-live="polite">
+          <div class="word" id="word">слово</div>
+          <div class="tint g" id="tintG">+1</div>
+          <div class="tint s" id="tintS">пропуск</div>
+        </div>
+      </div>
+      <button class="btn btn-bad act" id="btnBad">↓ Пропустити</button>
+      <div class="swipe-hint">Свайп угору — вгадано · свайп униз — пропуск</div>
+    </div>
+    <div class="game-bottom">
+      <div class="gb-row">
+        <div class="counter bad">Пропущено: <span id="sCount">0</span></div>
+        <div class="timer" id="timer">1:00</div>
+      </div>
+      <div class="bar" id="bar"><i id="barFill"></i></div>
+    </div>
+  </section>
+
+  <!-- Екран 8: Результат ходу -->
+  <section class="screen" id="s-result">
+    <div class="head"><div class="step">Хід завершено</div><h2>Результат</h2></div>
+    <div class="body">
+      <div class="res-head">
+        <div class="res-team" id="resTeam">—</div>
+        <div class="res-score" id="resScore">+0</div>
+        <div class="res-stats" id="resStats"></div>
+      </div>
+      <div class="hint-line">Торкніться слова, щоб виправити випадковий свайп</div>
+      <div class="words scroll" id="resWords"></div>
+    </div>
+    <div class="foot"><button class="btn btn-primary btn-big" id="resNext">Продовжити</button></div>
+  </section>
+
+  <!-- Екран перемоги -->
+  <section class="screen" id="s-win">
+    <div class="head"></div>
+    <div class="body">
+      <div class="trophy">🏆</div>
+      <div class="label">Перемогла команда</div>
+      <div class="win-name" id="winName">—</div>
+      <div class="podium" id="podium"></div>
+      <div class="others" id="winOthers"></div>
+    </div>
+    <div class="foot">
+      <button class="btn btn-ghost back" id="winHome" aria-label="Головне меню">⌂</button>
+      <button class="btn btn-primary btn-big" id="winNew">Нова гра</button>
+    </div>
+  </section>
+</div>
+
+<!-- ===== Модальні вікна ===== -->
+<div class="modal center" id="settingsModal" data-dismiss>
+  <div class="sheet scroll" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="sheet-head"><h3 id="setTitle">Налаштування</h3><button class="icon-btn" data-close aria-label="Закрити">✕</button></div>
+    <div class="label">Тема оформлення</div>
+    <div class="theme-list" id="themeList" role="radiogroup"></div>
+    <div class="setting-row"><div><b>Звук</b><small>Сигнали, тікання таймера, гонг</small></div><button class="toggle" data-setting="sound" aria-pressed="true" aria-label="Звук"></button></div>
+    <div class="setting-row"><div><b>Вібрація</b><small>Відгук на свайпи та кінець часу</small></div><button class="toggle" data-setting="vibro" aria-pressed="true" aria-label="Вібрація"></button></div>
+    <button class="btn btn-primary" data-close>Готово</button>
+  </div>
+</div>
+
+<div class="modal center" id="rulesModal" data-dismiss>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <div class="sheet-head"><h3 id="rulesTitle">Правила гри</h3><button class="icon-btn" data-close aria-label="Закрити">✕</button></div>
+    <div class="rules scroll">
+      <div><h4>🎯 Мета</h4>Поясніть своїй команді якомога більше слів, поки не скінчився час. Перемагає команда, що першою набере потрібну кількість балів.</div>
+      <div><h4>🔁 Як грати</h4><ul>
+        <li>Команди ходять по черзі. Один гравець пояснює, решта його команди відгадує.</li>
+        <li>Щоходу пояснювач у команді змінюється.</li>
+        <li><b>Свайп угору</b> або зелена кнопка — слово вгадано (+1).</li>
+        <li><b>Свайп униз</b> або червона кнопка — пропуск (0, або −1, якщо увімкнено штраф).</li>
+      </ul></div>
+      <div><h4>✅ Можна</h4><ul>
+        <li>Синоніми, антоніми, асоціації, описи («буває в школі», «протилежне до…»).</li>
+        <li>Підказувати кількість слів у виразі.</li>
+      </ul></div>
+      <div><h4>⛔ Не можна</h4><ul>
+        <li>Називати саме слово або спільнокореневі (для «співак» не можна «співати»).</li>
+        <li>Перекладати іншими мовами («це guitar англійською»).</li>
+        <li>Показувати жестами, пантомімою чи вказувати на предмет.</li>
+        <li>Називати перші літери, склади або «звучить як…».</li>
+      </ul>За порушення слово вважається пропущеним.</div>
+      <div><h4>⏰ Останнє слово</h4>Коли час вийшов, слово на екрані не згорає: пояснювач може його дояснити. Вгадувати його може лише команда, яка зараз ходить. Якщо вгадали — +1, якщо ні — слово просто не зараховується (без штрафу).</div>
+      <div><h4>✏️ Виправлення</h4>Після ходу можна виправити випадковий свайп — рахунок перерахується автоматично.</div>
+      <div><h4>🏁 Фінал</h4>Раунд завжди догравається до кінця, щоб усі команди мали однакову кількість ходів. Якщо на першому місці нічия — грається додатковий раунд.</div>
+    </div>
+    <button class="btn btn-primary" data-close>Зрозуміло!</button>
+  </div>
+</div>
+
+<div class="modal center" id="pauseModal">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <h3 id="pauseTitle" class="center-text" style="font-size:1.8rem;font-weight:900">⏸ Пауза</h3>
+    <p class="center-text muted" id="pauseInfo">Таймер зупинено</p>
+    <button class="btn btn-primary btn-big" id="resumeBtn">Продовжити</button>
+    <button class="btn" id="pauseSettings">⚙ Налаштування</button>
+    <button class="btn btn-ghost" id="pauseExit">Вийти в меню</button>
+  </div>
+</div>
+
+<div class="modal center" id="lastModal">
+  <div class="sheet scroll" role="dialog" aria-modal="true" aria-labelledby="lastTitle">
+    <h3 id="lastTitle" class="center-text" style="font-size:1.6rem;font-weight:900">⏰ Час вийшов!</h3>
+    <p class="center-text muted" id="lastSub">Останнє слово — для вашої команди. Встигли вгадати?</p>
+    <div class="lw-word" id="lastWord">—</div>
+    <div class="lw-btns" id="lastBtns"></div>
+  </div>
+</div>
+
+<div class="modal center" id="confirmModal">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <h3 class="center-text" id="confirmTitle" style="font-size:1.4rem;font-weight:900">Ви впевнені?</h3>
+    <p class="center-text muted" id="confirmText"></p>
+    <button class="btn btn-primary" id="confirmYes">Так</button>
+    <button class="btn btn-ghost" id="confirmNo">Скасувати</button>
+  </div>
+</div>
+
+<div id="countdown"><b>3</b><span id="cdTeam"></span></div>
+<div id="toast"></div>
+<div id="rotate"><div class="ph">📱</div>Поверніть телефон вертикально — гра працює лише в портретному режимі</div>
+
+<!--
+  ===== БАЗА СЛІВ =====
+  Структура: категорія → рівень → масив слів (іменники в називному відмінку однини або сталі вирази).
+  Щоб доповнити до 300 слів — просто додайте рядки в потрібний масив. Дублікати відкидаються автоматично.
+-->
+<script type="application/json" id="word-db">
+{
+  "music": {
+    "easy": ["гітара","барабан","піаніно","скрипка","пісня","співак","співачка","мікрофон","концерт","сцена","нота","бубон","сопілка","труба","флейта","бандура","акордеон","навушники","колонка","музика","танець","хор","оркестр","гурт","кліп","радіо","плеєр","губна гармошка","ксилофон","маракаси","саксофон","баян","цимбали","трембіта","дзвін","дзвіночок","свисток","мелодія","ритм","рок","реп","джаз","диджей","струна","клавіша","смичок","медіатор","квиток","фанат","автограф","гучність","караоке","плейлист","альбом","хіт","колискова","гімн","колядка","щедрівка","соло","оплески","дискотека","танцпол","вечірка","барабанщик","гітарист","скрипаль","піаніст","музикант","кобза","голос","пісенник","бас-гітара","електрогітара","тамбурин","барабанні палички","репер"],
+    "medium": ["синтезатор","контрабас","віолончель","арфа","тромбон","туба","валторна","кларнет","гобой","фагот","литаври","укулеле","банджо","мандоліна","орган","диригент","композитор","продюсер","звукорежисер","метроном","камертон","тембр","акорд","гама","октава","такт","темп","пауза","приспів","куплет","інтро","кавер","ремікс","сингл","фестиваль","гастролі","саундчек","фонограма","мюзикл","опера","балет","симфонія","романс","серенада","марш","вальс","танго","блюз","реггі","метал","панк","хіп-хоп","техно","фолк","вінілова платівка","касета","програвач","підсилювач","біт","бітмейкер","фристайл","реп-батл","стрімінг","чарт","Євробачення","вокаліст","бек-вокал","репетиція","біс","дует","тріо","квартет","ансамбль","скрипковий ключ","басовий ключ","нотний стан","студія звукозапису","фанклуб","мерч","живий звук","розспівка"],
+    "hard": ["контрапункт","модуляція","синкопа","арпеджіо","глісандо","вібрато","стакато","легато","фортисимо","піанісимо","крещендо","дімінуендо","фермата","каденція","увертюра","реквієм","ораторія","кантата","соната","фуга","прелюдія","ноктюрн","етюд","рапсодія","сюїта","партитура","лібрето","тональність","мажор","мінор","дисонанс","консонанс","інтервал","квінта","терція","тритон","дієз","бемоль","бекар","тремоло","флажолет","транспонування","акустика","реверберація","еквалайзер","мастеринг","зведення","семпл","семплер","лупер","вокодер","автотюн","фанера","джем-сейшн","лабух","сетлист","райдер","фіт","дроп","брейкдаун","бридж","хук","панчлайн","андеграунд","мейнстрім","інді","ембієнт","синтвейв","лоу-фай","а капела","клавесин","терменвокс","діджериду","колісна ліра","торбан","абсолютний слух","акомпанемент","імпровізація","поліритмія","мікшерний пульт","гримерка","лейбл","фронтмен"]
+  },
+  "school": {
+    "easy": ["школа","клас","урок","перерва","дзвоник","вчитель","вчителька","учень","учениця","парта","дошка","крейда","зошит","щоденник","підручник","ручка","олівець","гумка","лінійка","пенал","рюкзак","портфель","оцінка","домашка","математика","українська мова","читання","фізкультура","малювання","їдальня","буфет","директор","канікули","журнал","контрольна","диктант","твір","задача","приклад","глобус","мапа","фарби","пензлик","клей","ножиці","точилка","роздягальня","змінне взуття","спортзал","м'яч","бібліотека","книжка","сніданок","бутерброд","однокласник","однокласниця","шкільна форма","перший дзвоник","останній дзвоник","буквар","сторінка","відмінник","двійка","дванадцять балів","ранець","маркер","фломастер","стікер","закладка","обкладинка","шкільний двір","черга в буфеті"],
+    "medium": ["класний керівник","завуч","психолог","медсестра","охоронець","прибиральниця","шкільний автобус","розклад","заміна","вікно в розкладі","факультатив","гурток","олімпіада","конкурс","екскурсія","батьківські збори","табель","атестат","НМТ","випускний","шпаргалка","списування","підказка","чергування","черговий","староста","стінгазета","лабораторна","практична","самостійна","тест","залік","реферат","проєкт","презентація","доповідь","переказ","правило","формула","рівняння","таблиця множення","вірш напам'ять","контурна мапа","атлас","мікроскоп","пробірка","скелет","кабінет","актова зала","шкільний стадіон","прогул","запізнення","довідка","записка від батьків","зауваження","виклик батьків","учительська","біологія","хімія","фізика","географія","історія","алгебра","геометрія","інформатика","англійська","трудове навчання","основи здоров'я","дистанційка","онлайн-урок","шкільний чат","урочиста лінійка","навчальна тривога","укриття","шкільний ярмарок","день самоврядування"],
+    "hard": ["тригонометрія","інтеграл","синус","дискримінант","теорема Піфагора","валентність","фотосинтез","мітохондрія","періодична таблиця","закон Ома","бісектриса","медіана","гіпотенуза","катет","паралелепіпед","хромосома","тектонічна плита","синтаксис","підмет","присудок","дієприслівник","дієприкметник","пунктуація","орфограма","метафора","епітет","гіпербола","алітерація","хронологія","Трипільська культура","Запорозька Січ","конституція","краш","кринж","рофл","душніла","фізра","матеша","контроша","самостійка","укрліт","ботанік","зубрилка","прогульник","ГДЗ","шпора","педрада","навчальна програма","семестр","атестація","апеляція","сертифікат","ліцей","гімназія","профільний клас","учнівське самоврядування","дебати","Мала академія наук","логарифм","вектор","координатна площина","молекула","ямб","хорей","епіграф","алегорія","складнопідрядне речення","прислівник","відмінок","суфікс","інфузорія-туфелька","амеба"]
+  },
+  "mix": {
+    "easy": ["кіт","собака","сонце","хмара","дощ","сніг","будинок","вікно","двері","стіл","стілець","ліжко","телефон","телевізор","холодильник","машина","велосипед","автобус","літак","потяг","корабель","яблуко","банан","морозиво","торт","піца","борщ","вареник","хліб","молоко","чай","кава","сир","яйце","риба","курка","корова","кінь","свиня","вовк","лисиця","ведмідь","заєць","їжак","пташка","метелик","бджола","квітка","дерево","ліс","річка","море","гора","острів","зірка","місяць","ракета","м'яч","лялька","подарунок","ялинка","парасолька","окуляри","годинник","шапка","шарф","черевики","ключ","ложка","тарілка","чашка","мило","зубна щітка","подушка"],
+    "medium": ["пилосос","мікрохвильовка","праска","ліфт","ескалатор","світлофор","пішохідний перехід","заправка","аптека","лікарня","пошта","банкомат","супермаркет","ринок","кінотеатр","зоопарк","цирк","музей","вокзал","аеропорт","паспорт","валіза","намет","багаття","ліхтарик","компас","бінокль","підводний човен","вертоліт","трактор","комбайн","екскаватор","пожежна машина","швидка допомога","поліцейський","пожежник","лікар","кухар","перукар","фермер","космонавт","пірат","лицар","принцеса","дракон","русалка","привид","чарівник","робот","інопланетянин","динозавр","крокодил","жираф","пінгвін","кенгуру","восьминіг","медуза","черепаха","папуга","хом'як","равлик","павук","мурашник","веселка","блискавка","торнадо","вулкан","пустеля","джунглі","айсберг","водоспад","печера","маяк","замок","вежа","міст","фонтан","гойдалка","батут","кавун","полуниця","сало","голубці","деруни","пампушки","вишиванка","писанка","коровай"],
+    "hard": ["бюрократія","ностальгія","інфляція","демократія","парадокс","ілюзія","інтуїція","дежавю","сарказм","компроміс","дедлайн","прокрастинація","алгоритм","штучний інтелект","віртуальна реальність","блокчейн","криптовалюта","волонтер","благодійність","глобальне потепління","сортування сміття","архітектор","археолог","астроном","дипломат","нотаріус","адвокат","хірург","ветеринар","сомельє","бариста","блогер","стример","інфлюенсер","хайп","мем","лайфхак","спойлер","селфі","гороскоп","телепорт","машина часу","паралельний всесвіт","чорна діра","сузір'я","затемнення","метеорит","мікроб","імунітет","вакцина","еволюція","цивілізація","піраміда","лабіринт","мозаїка","відлуння","тінь","сновидіння","безсоння","понеділок","вихідні","затор","черга","сусід","теща","свекруха","кум","весілля","хрестини","новосілля","ювілей","сюрприз","інтерв'ю","резюме","співбесіда","відпустка","пенсія","податок","кредит","іпотека","ентузіазм","фортуна","карма","хаос","ейфорія"]
+  }
+}
+</script>
+
+<script>
+(() => {
+'use strict';
+
+/* ================== Дані ================== */
+const DB = (() => {
+  const raw = JSON.parse(document.getElementById('word-db').textContent);
+  for (const c in raw) for (const l in raw[c]) raw[c][l] = [...new Set(raw[c][l].map(w => w.trim()).filter(Boolean))];
+  return raw;
+})();
+
+const CATS = {
+  music:  { name:'Музичний',       icon:'🎵', desc:'Інструменти, жанри, терміни й сленг музикантів' },
+  school: { name:'Шкільний вайб',  icon:'🎒', desc:'Предмети, перерви, канцелярія, учнівський сленг' },
+  mix:    { name:'Класичний мікс', icon:'🎲', desc:'Усе підряд: від борщу до чорної діри' }
+};
+const LEVELS = { easy:{name:'Легкий',dots:1}, medium:{name:'Середній',dots:2}, hard:{name:'Складний',dots:3} };
+
+const TEAM_NAMES = ['Шалені вареники','Борщ-бенд','Котики-ботики','Галушки удачі','Мемні лицарі','Сонячні ракети',
+  'Кавові бобри','Ліниві єноти','Пиріжки з перцем','Бджілки-розумашки','Космічні їжаки','Дикі пампушки',
+  'Хитрі лисиці','Веселі деруни','Нічні сови','Шкільні ніндзя','Гучні цимбали','Рок-кабачки','Летючі капці',
+  'Сирники-переможці','Біт-бабусі','Супер-гарбузи','Ковбої з Полтави','Турбо-равлики','Чарівні вафлі'];
+const TEAM_COLORS = ['#E098AC','#A6C9DD','#68002C','#FFF8D5','#441910','#8CCB9B','#B85C78','#6E8FA3','#F2D7A6','#9E4A3A'];
+const MAX_TEAMS = 10;
+
+/* ================== Теми та контраст ================== */
+// Кольори тла для кожної поверхні. Колір тексту на них (--on-*) підбирається автоматично.
+const THEMES = {
+  lemon: { name:'Лимонний айсинг', note:'Світла · базова',
+    v:{ bg:'#FFF8D5', surface:'#A6C9DD', surface2:'#E098AC', primary:'#441910', accent:'#68002C', circle:'#A6C9DD', ring:'#E098AC', good:'#8CCB9B', bad:'#68002C' } },
+  rum:   { name:'Родзинка в ромі', note:'Темна · контрастна',
+    v:{ bg:'#441910', surface:'#572F24', surface2:'#68002C', primary:'#E098AC', accent:'#A6C9DD', circle:'#FFF8D5', ring:'#E098AC', good:'#8CCB9B', bad:'#E098AC' } },
+  berry: { name:'Ягідний мікс', note:'Яскрава · акцентна',
+    v:{ bg:'#68002C', surface:'#FFF8D5', surface2:'#A6C9DD', primary:'#FFF8D5', accent:'#A6C9DD', circle:'#FFF8D5', ring:'#E098AC', good:'#8CCB9B', bad:'#E098AC' } }
+};
+const TEXT_CANDIDATES = ['#441910','#68002C','#FFF8D5']; // текст лише з палітри
+const MIN_CONTRAST = 4.5;
+
+const rgb = h => { h = h.replace('#',''); return [0,2,4].map(i => parseInt(h.substr(i,2),16)); };
+const lum = h => rgb(h).map(v => { v /= 255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4); })
+  .reduce((a,v,i) => a + v*[.2126,.7152,.0722][i], 0);
+const contrast = (a,b) => { const A = lum(a), B = lum(b); return (Math.max(A,B)+.05)/(Math.min(A,B)+.05); };
+function bestText(bg){
+  let best = TEXT_CANDIDATES.reduce((b,c) => contrast(bg,c) > contrast(bg,b) ? c : b);
+  if (contrast(bg,best) < MIN_CONTRAST) best = contrast(bg,'#000000') > contrast(bg,'#FFFFFF') ? '#000000' : '#FFFFFF';
+  return best;
+}
+function applyTheme(name){
+  const t = THEMES[name] || THEMES.lemon, root = document.documentElement.style;
+  for (const [k,c] of Object.entries(t.v)){
+    const on = bestText(c);
+    root.setProperty('--'+k, c);
+    root.setProperty('--on-'+k, on);
+    root.setProperty('--on-'+k+'-rgb', rgb(on).join(','));
+  }
+  // «Поганий» колір як текст/індикатор прямо на тлі: якщо контраст слабкий — беремо колір тексту тла
+  root.setProperty('--bad-on-bg', contrast(t.v.bad, t.v.bg) >= 3 ? t.v.bad : bestText(t.v.bg));
+  document.querySelector('meta[name=theme-color]').setAttribute('content', t.v.bg);
+}
+
+/* ================== Сховище ================== */
+const LS_SETTINGS = 'alias.settings.v1', LS_GAME = 'alias.game.v1';
+const load = k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } };
+const store = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+let settings = Object.assign({ theme:'lemon', sound:true, vibro:true }, load(LS_SETTINGS) || {});
+let game = load(LS_GAME);
+const saveSettings = () => store(LS_SETTINGS, settings);
+const saveGame = () => store(LS_GAME, game);
+
+/* ================== Утиліти ================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const plural = (n, f) => { const a = Math.abs(n)%100, b = a%10; return a>10&&a<20 ? f[2] : b===1 ? f[0] : b>=2&&b<=4 ? f[1] : f[2]; };
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n);
+let toastT;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ================== Звук (Web Audio API) ================== */
+let actx = null;
+function ac(){
+  if (!actx){ const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; actx = new C(); }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, type='sine', vol=.2, delay=0, slideTo=null){
+  const c = ac(); if (!c) return;
+  const t0 = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + .01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + .05);
+}
+const SFX = {
+  tick(){ tone(1200,.05,'square',.07); },
+  correct(){ tone(660,.1,'sine',.22); tone(990,.16,'sine',.22,.08); },
+  skip(){ tone(320,.18,'triangle',.25,0,170); },
+  beep(){ tone(880,.14,'sine',.25); },
+  go(){ tone(1320,.3,'sine',.3); tone(1760,.3,'sine',.12,.05); },
+  gong(){ [110,220,331,442,587,880].forEach((f,i) => tone(f, 2.6-i*.25, 'sine', .3/(i+1))); },
+  tap(){ tone(520,.04,'sine',.08); },
+  win(){ [523,659,784,1047].forEach((f,i) => tone(f,.35,'triangle',.22,i*.14)); tone(1047,.9,'sine',.18,.56); }
+};
+const play = n => { if (settings.sound) try { SFX[n](); } catch(e){} };
+const vibe = p => { if (settings.vibro && navigator.vibrate) try { navigator.vibrate(p); } catch(e){} };
+
+/* ================== Wake Lock та орієнтація ================== */
+let wakeLock = null;
+async function requestWakeLock(){
+  try { if ('wakeLock' in navigator && !wakeLock && !document.hidden){
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } } catch(e){}
+}
+function releaseWakeLock(){ try { wakeLock && wakeLock.release(); } catch(e){} wakeLock = null; }
+function lockOrientation(){ try { screen.orientation && screen.orientation.lock && screen.orientation.lock('portrait').catch(()=>{}); } catch(e){} }
+
+/* блокуємо pull-to-refresh і «стрибання» сторінки */
+document.addEventListener('touchmove', e => {
+  if (e.target.closest('.scroll, input[type=range]')) return;
+  e.preventDefault();
+}, { passive:false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+/* ================== Навігація ================== */
+const SCREENS = ['splash','menu','teams','params','cat','lobby','game','result','win'];
+let current = 'splash';
+function show(id){
+  current = id;
+  SCREENS.forEach(s => $('#s-'+s).classList.toggle('active', s === id));
+  document.body.dataset.screen = id;
+}
+document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
+  play('tap'); const to = b.dataset.go;
+  if (to === 'menu') goMenu(); else { show(to); if (to==='teams') renderTeams(); if (to==='params') renderParams(); }
+}));
+
+/* ================== Модальні вікна ================== */
+let zTop = 100;
+function openModal(id){ const m = $('#'+id); m.style.zIndex = ++zTop; m.classList.add('open'); }
+function closeModal(id){ $('#'+id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => {
+    if (e.target.closest('[data-close]') || (e.target === m && m.hasAttribute('data-dismiss'))) { play('tap'); m.classList.remove('open'); }
+  });
+});
+let confirmCb = null;
+function confirmBox(title, text, yes, cb){
+  $('#confirmTitle').textContent = title; $('#confirmText').textContent = text; $('#confirmYes').textContent = yes;
+  confirmCb = cb; openModal('confirmModal');
+}
+$('#confirmYes').onclick = () => { closeModal('confirmModal'); confirmCb && confirmCb(); };
+$('#confirmNo').onclick = () => closeModal('confirmModal');
+
+/* ================== Налаштування ================== */
+function renderThemeList(){
+  $('#themeList').innerHTML = Object.entries(THEMES).map(([k,t]) => {
+    const on = bestText(t.v.bg);
+    return `<button class="theme-opt" role="radio" data-theme="${k}" aria-checked="${settings.theme===k}" style="background:${t.v.bg};color:${on};outline:2px solid rgba(${rgb(on).join(',')},.2)">
+      <span class="sw"><i style="background:${t.v.bg}"></i><i style="background:${t.v.primary}"></i><i style="background:${t.v.surface}"></i><i style="background:${t.v.ring}"></i></span>
+      <span><b>${t.name}</b><small>${t.note}</small></span></button>`;
+  }).join('');
+}
+$('#themeList').addEventListener('click', e => {
+  const b = e.target.closest('[data-theme]'); if (!b) return;
+  settings.theme = b.dataset.theme; saveSettings(); applyTheme(settings.theme); renderThemeList(); play('tap');
+});
+function syncToggles(){
+  document.querySelectorAll('[data-setting]').forEach(t => t.setAttribute('aria-pressed', !!settings[t.dataset.setting]));
+}
+document.querySelectorAll('[data-setting]').forEach(t => t.addEventListener('click', () => {
+  const k = t.dataset.setting; settings[k] = !settings[k]; saveSettings(); syncToggles();
+  if (k === 'sound' && settings.sound) play('correct');
+  if (k === 'vibro' && settings.vibro) vibe(40);
+}));
+$('#gearBtn').addEventListener('click', e => { e.stopPropagation(); play('tap'); renderThemeList(); syncToggles(); openModal('settingsModal'); });
+
+/* ================== Екран 1 → 2 ================== */
+let splashT = setTimeout(goMenu, 2000);
+$('#s-splash').addEventListener('click', () => { clearTimeout(splashT); ac(); goMenu(); });
+
+function goMenu(){
+  clearTimeout(splashT);
+  stopTimer(); releaseWakeLock();
+  const resumable = game && ['setup','lobby','turn','result'].includes(game.status);
+  $('#continueBtn').hidden = !resumable;
+  show('menu');
+}
+$('#rulesBtn').onclick = () => { play('tap'); openModal('rulesModal'); };
+$('#startBtn').onclick = () => {
+  ac(); play('tap'); lockOrientation();
+  const start = () => { newSetup(); show('teams'); renderTeams(); };
+  if (game && ['lobby','turn','result'].includes(game.status))
+    confirmBox('Почати нову гру?', 'Поточний прогрес буде втрачено.', 'Нова гра', start);
+  else start();
+};
+$('#continueBtn').onclick = () => { ac(); play('tap'); resumeGame(); };
+
+function resumeGame(){
+  if (!game) return;
+  switch (game.status){
+    case 'setup':  show('teams'); renderTeams(); break;
+    case 'lobby':  showLobby(); break;
+    case 'result': showResult(); break;
+    case 'turn':
+      requestWakeLock(); show('game'); renderGame();
+      if (game.turn.timeLeft <= 0) openLastWord();
+      else { $('#pauseInfo').textContent = 'Гру відновлено. Залишилось ' + fmtTime(game.turn.timeLeft); openModal('pauseModal'); }
+      break;
+  }
+}
+
+/* ================== Екран 3: Команди ================== */
+function randomName(exclude){
+  const used = new Set(exclude.map(s => s.trim().toLowerCase()));
+  const pool = TEAM_NAMES.filter(n => !used.has(n.toLowerCase()));
+  return (pool.length ? pool : TEAM_NAMES)[Math.floor(Math.random()*(pool.length || TEAM_NAMES.length))];
+}
+function newSetup(keepNames){
+  const names = keepNames || [];
+  const teams = [];
+  const n = names.length || 2;
+  for (let i=0;i<n;i++) teams.push({ name: names[i] || randomName(teams.map(t=>t.name)), score:0 });
+  game = { status:'setup', teams, target:30, time:60, penalty:false, category:null, level:null,
+           round:1, current:0, turns:[], used:{}, turn:null };
+  saveGame();
+}
+function renderTeams(){
+  $('#teamCount').textContent = game.teams.length;
+  $('#teamMinus').disabled = game.teams.length <= 2; $('#teamPlus').disabled = game.teams.length >= MAX_TEAMS;
+  $('#teamWord').textContent = plural(game.teams.length,['команда','команди','команд']);
+  $('#teamList').innerHTML = game.teams.map((t,i) => `
+    <div class="team-row">
+      <span class="dot" style="background:${TEAM_COLORS[i]}"></span>
+      <input class="input" maxlength="24" data-i="${i}" value="${esc(t.name)}" placeholder="Команда ${i+1}" aria-label="Назва команди ${i+1}">
+      <button class="icon-btn dice" data-i="${i}" aria-label="Випадкова назва">🎲</button>
+    </div>`).join('');
+}
+$('#teamList').addEventListener('input', e => {
+  if (!e.target.matches('.input')) return;
+  game.teams[+e.target.dataset.i].name = e.target.value; saveGame();
+});
+$('#teamList').addEventListener('click', e => {
+  const b = e.target.closest('.dice'); if (!b) return;
+  const i = +b.dataset.i;
+  game.teams[i].name = randomName(game.teams.map(t => t.name)); saveGame(); play('tap'); vibe(10);
+  const inp = $(`#teamList .input[data-i="${i}"]`); inp.value = game.teams[i].name;
+});
+$('#teamMinus').onclick = () => { if (game.teams.length > 2){ game.teams.pop(); saveGame(); renderTeams(); play('tap'); } };
+$('#teamPlus').onclick  = () => { if (game.teams.length < MAX_TEAMS){ game.teams.push({ name: randomName(game.teams.map(t=>t.name)), score:0 }); saveGame(); renderTeams(); play('tap'); } };
+$('#teamsNext').onclick = () => {
+  game.teams.forEach((t,i) => { t.name = t.name.trim() || ('Команда ' + (i+1)); });
+  const lower = game.teams.map(t => t.name.toLowerCase());
+  if (new Set(lower).size !== lower.length){ toast('Назви команд мають бути різними'); vibe([30,40,30]); return; }
+  saveGame(); play('tap'); show('params'); renderParams();
+};
+
+/* ================== Екран 4: Параметри ================== */
+function setFill(r){ r.style.setProperty('--fill', ((r.value - r.min) / (r.max - r.min) * 100) + '%'); }
+function renderParams(){
+  const tr = $('#targetRange'), ti = $('#timeRange');
+  tr.value = game.target; ti.value = game.time; setFill(tr); setFill(ti);
+  $('#targetVal').textContent = game.target; $('#timeVal').textContent = game.time + ' с';
+  $('#penaltyToggle').setAttribute('aria-pressed', game.penalty); syncToggles();
+}
+$('#targetRange').addEventListener('input', e => { game.target = +e.target.value; setFill(e.target); $('#targetVal').textContent = game.target; saveGame(); });
+$('#timeRange').addEventListener('input',   e => { game.time = +e.target.value; setFill(e.target); $('#timeVal').textContent = game.time + ' с'; saveGame(); });
+$('#penaltyToggle').onclick = () => { game.penalty = !game.penalty; saveGame(); renderParams(); play('tap'); };
+$('#paramsNext').onclick = () => { play('tap'); show('cat'); renderCat(); };
+
+/* ================== Екран 5: Категорія та складність ================== */
+function renderCat(){
+  $('#catList').innerHTML = Object.entries(CATS).map(([k,c]) => {
+    const n = Object.values(DB[k]).reduce((a,l) => a + l.length, 0);
+    return `<button class="choice" role="radio" data-cat="${k}" aria-checked="${game.category===k}">
+      <span class="ico">${c.icon}</span><span><b>${c.name}</b><small>${c.desc} · ${n} ${plural(n,['слово','слова','слів'])}</small></span></button>`;
+  }).join('');
+  $('#levelList').innerHTML = Object.entries(LEVELS).map(([k,l]) =>
+    `<button class="choice" role="radio" data-level="${k}" aria-checked="${game.level===k}">
+      <span class="lvl-dots">${[1,2,3].map(i => `<i class="${i<=l.dots?'on':''}"></i>`).join('')}</span><b>${l.name}</b></button>`).join('');
+  $('#catNext').disabled = !(game.category && game.level);
+}
+$('#catList').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (!b) return; game.category = b.dataset.cat; saveGame(); renderCat(); play('tap'); vibe(10); });
+$('#levelList').addEventListener('click', e => { const b = e.target.closest('[data-level]'); if (!b) return; game.level = b.dataset.level; saveGame(); renderCat(); play('tap'); vibe(10); });
+$('#catNext').onclick = () => {
+  game.teams.forEach(t => t.score = 0);
+  game.status = 'lobby'; game.round = 1; game.current = 0; game.turns = game.teams.map(() => 0); game.turn = null;
+  game.used = game.used || {};
+  saveGame(); play('tap'); requestWakeLock(); showLobby();
+};
+
+/* ================== Колода слів (без повторів у межах сесії) ================== */
+function nextWord(){
+  const key = game.category + '-' + game.level, pool = DB[game.category][game.level];
+  const used = new Set(game.used[key] || []);
+  let avail = pool.filter(w => !used.has(w));
+  if (!avail.length){ game.used[key] = []; avail = pool.slice(); toast('Слова скінчилися — колоду перемішано заново'); }
+  const w = avail[Math.floor(Math.random()*avail.length)];
+  (game.used[key] = game.used[key] || []).push(w);
+  return w;
+}
+
+/* ================== Екран 6: Лобі ================== */
+function sortedTeams(){ return game.teams.map((t,i) => ({...t, i})).sort((a,b) => b.score - a.score || a.i - b.i); }
+function showLobby(){
+  show('lobby');
+  $('#lobbyRound').textContent = 'Раунд ' + game.round;
+  $('#lobbyGoal').textContent = `Мета: ${game.target} балів`;
+  const sorted = sortedTeams();
+  let pos = 0, prev = null;
+  $('#rankList').innerHTML = sorted.map((t,k) => {
+    if (t.score !== prev){ pos = k+1; prev = t.score; }
+    const now = t.i === game.current, pct = Math.max(0, Math.min(100, t.score / game.target * 100));
+    return `<div class="rank-item ${now?'now':''}">
+      <span class="rank-pos">${pos}</span><span class="dot" style="background:${TEAM_COLORS[t.i]}"></span>
+      <span class="rank-name">${now?'<small>ходить зараз</small>':''}${esc(t.name)}</span>
+      <span class="rank-score">${t.score}</span><span class="rank-bar"><i style="width:${pct}%"></i></span></div>`;
+  }).join('');
+  $('#lobbyTeam').textContent = game.teams[game.current].name;
+  $('#lobbyChips').innerHTML = `<span class="chip">${CATS[game.category].icon} ${CATS[game.category].name}</span>
+    <span class="chip">${LEVELS[game.level].name}</span><span class="chip">⏱ ${game.time} с</span>${game.penalty?'<span class="chip">Штраф −1</span>':''}`;
+  $('#lobbyStart').disabled = false;
+}
+$('#lobbyHome').onclick = () => { play('tap'); goMenu(); };
+$('#lobbyStart').onclick = () => { ac(); $('#lobbyStart').disabled = true; countdown(); };
+
+function countdown(){
+  requestWakeLock(); lockOrientation();
+  const ov = $('#countdown'), b = ov.querySelector('b');
+  $('#cdTeam').textContent = 'Пояснює команда «' + game.teams[game.current].name + '»';
+  ov.classList.add('open');
+  let n = 3;
+  const step = () => {
+    b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
+    if (n > 0){ b.textContent = n; play('beep'); vibe(25); n--; setTimeout(step, 800); }
+    else { b.textContent = 'Старт!'; play('go'); vibe(60); setTimeout(() => { ov.classList.remove('open'); beginTurn(); }, 500); }
+  };
+  step();
+}
+
+/* ================== Екран 7: Гра ================== */
+function beginTurn(){
+  game.status = 'turn';
+  game.turn = { words:[], current: nextWord(), timeLeft: game.time*1000, last:null };
+  saveGame(); show('game'); renderGame(); startTimer();
+}
+function renderGame(){
+  setWord(game.turn.current, false); updateCounters(); renderTimer();
+}
+function updateCounters(){
+  const w = game.turn.words;
+  $('#gCount').textContent = w.filter(x => x.s==='g').length;
+  $('#sCount').textContent = w.filter(x => x.s==='s').length;
+}
+function setWord(w, animate=true){
+  const el = $('#word'); el.textContent = w;
+  const longest = Math.max(...w.split(/[\s-]+/).map(x => x.length));
+  const size = longest<=5 ? 15.5 : longest<=7 ? 12.5 : longest<=9 ? 10.5 : longest<=11 ? 8.8 : longest<=13 ? 7.6 : 6.4;
+  const box = $('#wordCard').offsetWidth || Math.min(window.innerWidth*.8, 350);
+  el.style.fontSize = Math.round(size/100*box) + 'px';
+  if (animate){ const c = $('#wordCard'); c.classList.remove('enter'); void c.offsetWidth; c.classList.add('enter'); }
+}
+const fmtTime = ms => { const s = Math.ceil(ms/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); };
+
+let running = false, rafId = 0, lastTs = 0, lastSec = -1;
+function startTimer(){
+  if (running || !game || game.status !== 'turn') return;
+  running = true; lastTs = performance.now(); lastSec = Math.ceil(game.turn.timeLeft/1000);
+  rafId = requestAnimationFrame(loop);
+}
+function stopTimer(){ if (!running) return; running = false; cancelAnimationFrame(rafId); saveGame(); }
+function loop(ts){
+  if (!running) return;
+  const dt = Math.min(ts - lastTs, 250); lastTs = ts;
+  game.turn.timeLeft = Math.max(0, game.turn.timeLeft - dt);
+  renderTimer();
+  const sec = Math.ceil(game.turn.timeLeft/1000);
+  if (sec !== lastSec){
+    lastSec = sec;
+    if (sec <= 5 && sec > 0){ play('tick'); vibe(15); }
+    saveGame();
+  }
+  if (game.turn.timeLeft <= 0){ running = false; timeUp(); return; }
+  rafId = requestAnimationFrame(loop);
+}
+function renderTimer(){
+  const t = game.turn.timeLeft, total = game.time*1000, low = t <= 10000;
+  $('#timer').textContent = fmtTime(t);
+  $('#timer').classList.toggle('low', low && t > 0);
+  $('#bar').classList.toggle('low', low);
+  $('#barFill').style.transform = `scaleX(${t/total})`;
+}
+
+let animT;
+function answer(s){
+  if (!running || game.status !== 'turn') return;
+  const t = game.turn;
+  t.words.push({ w:t.current, s });
+  t.current = nextWord();
+  saveGame(); updateCounters();
+  if (s === 'g'){ play('correct'); vibe(35); } else { play('skip'); vibe([25,40,25]); }
+  const c = $('#wordCard');
+  c.classList.remove('dragging','enter'); c.style.transform = '';
+  $('#tintG').style.opacity = 0; $('#tintS').style.opacity = 0;
+  c.classList.add(s === 'g' ? 'fly-up' : 'fly-down');
+  clearTimeout(animT);
+  animT = setTimeout(() => {
+    c.classList.add('no-anim'); c.classList.remove('fly-up','fly-down');
+    setWord(game.turn.current, false); void c.offsetWidth;
+    c.classList.remove('no-anim'); c.classList.add('enter');
+  }, 190);
+}
+$('#btnGood').onclick = () => answer('g');
+$('#btnBad').onclick  = () => answer('s');
+
+/* Свайпи */
+(() => {
+  const card = $('#wordCard'); let drag = null;
+  card.addEventListener('pointerdown', e => {
+    if (!running) return;
+    drag = { y:e.clientY, dy:0, id:e.pointerId }; card.setPointerCapture(e.pointerId); card.classList.add('dragging');
+  });
+  card.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag.dy = e.clientY - drag.y;
+    card.style.transform = `translateY(${drag.dy}px) rotate(${drag.dy/40}deg)`;
+    const p = Math.min(1, Math.abs(drag.dy)/110);
+    $('#tintG').style.opacity = drag.dy < 0 ? p*.85 : 0;
+    $('#tintS').style.opacity = drag.dy > 0 ? p*.85 : 0;
+  });
+  const end = e => {
+    if (!drag) return;
+    const dy = drag.dy; drag = null;
+    if (dy < -70) return answer('g');
+    if (dy > 70)  return answer('s');
+    card.classList.remove('dragging'); card.style.transform = '';
+    $('#tintG').style.opacity = 0; $('#tintS').style.opacity = 0;
+  };
+  card.addEventListener('pointerup', end);
+  card.addEventListener('pointercancel', end);
+})();
+
+/* Клавіатура (для тестування на ПК) */
+document.addEventListener('keydown', e => {
+  if (current !== 'game') return;
+  if (e.key === 'ArrowUp') answer('g');
+  else if (e.key === 'ArrowDown') answer('s');
+  else if (e.key === ' ' || e.key === 'Escape'){ e.preventDefault(); running ? pauseTurn() : null; }
+});
+
+/* Пауза */
+function pauseTurn(){
+  if (!running) return;
+  stopTimer(); $('#pauseInfo').textContent = 'Залишилось ' + fmtTime(game.turn.timeLeft); openModal('pauseModal');
+}
+$('#pauseBtn').onclick = () => { play('tap'); pauseTurn(); };
+$('#resumeBtn').onclick = () => {
+  ac(); closeModal('pauseModal'); requestWakeLock();
+  if (game.turn.timeLeft <= 0) openLastWord(); else startTimer();
+};
+$('#pauseSettings').onclick = () => { renderThemeList(); syncToggles(); openModal('settingsModal'); };
+$('#pauseExit').onclick = () => confirmBox('Вийти в меню?', 'Рахунок гри збережеться, а цей хід доведеться зіграти заново.', 'Вийти', () => {
+  closeModal('pauseModal'); game.status = 'lobby'; game.turn = null; saveGame(); goMenu();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden){ if (running) pauseTurn(); }
+  else if (game && ['lobby','turn','result'].includes(game.status) && ['lobby','game','result'].includes(current)) requestWakeLock();
+});
+
+/* Час вийшов → останнє слово */
+function timeUp(){
+  game.turn.timeLeft = 0; renderTimer(); saveGame();
+  play('gong'); vibe([250,120,350]);
+  openLastWord();
+}
+function openLastWord(){
+  const cur = game.current;
+  $('#lastWord').textContent = game.turn.current;
+  $('#lastSub').textContent = 'Останнє слово — лише для команди «' + game.teams[cur].name + '». Встигли вгадати?';
+  $('#lastBtns').innerHTML =
+    `<button class="btn btn-good" data-to="${cur}">✔ Вгадали (+1)</button>` +
+    `<button class="btn btn-ghost" data-to="-1">✖ Не вгадали</button>`;
+  openModal('lastModal');
+}
+$('#lastBtns').addEventListener('click', e => {
+  const b = e.target.closest('[data-to]'); if (!b) return;
+  game.turn.last = { w: game.turn.current, to: +b.dataset.to };
+  game.status = 'result'; saveGame(); closeModal('lastModal'); play('tap'); showResult();
+});
+
+/* ================== Екран 8: Результат ходу ================== */
+function turnScore(){
+  const t = game.turn, g = t.words.filter(x => x.s==='g').length, s = t.words.filter(x => x.s==='s').length;
+  const lastOwn = t.last && t.last.to === game.current ? 1 : 0;
+  return { g, s, lastOwn, pts: g + lastOwn - (game.penalty ? s : 0) };
+}
+function lastLabel(to){
+  return to === game.current ? { cls:'g', txt:'✔ Вгадано' } : { cls:'n', txt:'✖ Не зараховано' };
+}
+function showResult(){
+  releaseWakeLock(); requestWakeLock();
+  show('result'); renderResult(false);
+}
+function renderResult(bump){
+  const t = game.turn, sc = turnScore();
+  $('#resTeam').textContent = 'Команда «' + game.teams[game.current].name + '»';
+  const el = $('#resScore'); el.textContent = signed(sc.pts);
+  if (bump){ el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 150); }
+  let stats = `Вгадано ${sc.g + sc.lastOwn} · Пропущено ${sc.s}`;
+  if (game.penalty && sc.s) stats += ` · Штраф −${sc.s}`;
+  $('#resStats').textContent = stats;
+  $('#resWords').innerHTML = t.words.map((w,i) =>
+    `<button class="wrow" data-i="${i}"><span>${esc(w.w)}</span><span class="pill ${w.s}">${w.s==='g'?'✔ Вгадано':'✖ Пропущено'}</span></button>`).join('') +
+    (t.last ? (() => { const l = lastLabel(t.last.to);
+      return `<button class="wrow last" data-last="1"><span><small>Останнє слово</small>${esc(t.last.w)}</span><span class="pill ${l.cls}">${esc(l.txt)}</span></button>`; })() : '') +
+    (!t.words.length && !t.last ? '<div class="hint-line">Жодного слова цього ходу</div>' : '');
+}
+$('#resWords').addEventListener('click', e => {
+  const b = e.target.closest('.wrow'); if (!b) return;
+  const t = game.turn;
+  if (b.dataset.last){
+    t.last.to = t.last.to === game.current ? -1 : game.current;
+  } else {
+    const w = t.words[+b.dataset.i]; w.s = w.s === 'g' ? 's' : 'g';
+  }
+  saveGame(); play('tap'); vibe(12); renderResult(true);
+});
+$('#resNext').onclick = () => {
+  const t = game.turn, sc = turnScore(), cur = game.current, n = game.teams.length;
+  game.teams[cur].score += sc.pts;
+  game.turns[cur] = (game.turns[cur] || 0) + 1;
+  game.turn = null;
+  game.current = (cur + 1) % n;
+  play('tap');
+  if (game.current === 0){ // усі команди зіграли однакову кількість ходів
+    const max = Math.max(...game.teams.map(x => x.score));
+    if (max >= game.target){
+      const leaders = game.teams.filter(x => x.score === max);
+      if (leaders.length === 1){ game.status = 'won'; saveGame(); showWin(); return; }
+      toast('Нічия на першому місці — граємо додатковий раунд!');
+    }
+    game.round++;
+  }
+  game.status = 'lobby'; saveGame(); showLobby();
+};
+
+/* ================== Перемога ================== */
+function showWin(){
+  releaseWakeLock(); show('win');
+  const s = sortedTeams();
+  $('#winName').textContent = s[0].name;
+  const order = s.length >= 3 ? [1,0,2] : [1,0];
+  $('#podium').innerHTML = order.filter(k => s[k]).map(k =>
+    `<div class="pod p${k+1}"><span class="pname">${esc(s[k].name)}</span><span class="pscore">${s[k].score} ${plural(s[k].score,['бал','бали','балів'])}</span><div class="col">${k+1}</div></div>`).join('');
+  $('#winOthers').textContent = s.slice(3).map((t,k) => `${k+4}. ${t.name} — ${t.score}`).join(' · ');
+  play('win'); vibe([80,60,80,60,200]); confetti();
+}
+function confetti(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div'); box.className = 'confetti';
+  const cols = ['#E098AC','#68002C','#A6C9DD','#FFF8D5','#441910','#8CCB9B'];
+  for (let i=0;i<70;i++){
+    const p = document.createElement('i');
+    p.style.left = Math.random()*100 + '%'; p.style.background = cols[i % cols.length];
+    p.style.animationDuration = (2.2 + Math.random()*2) + 's'; p.style.animationDelay = Math.random()*.8 + 's';
+    p.style.transform = `rotate(${Math.random()*360}deg)`;
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 5200);
+}
+$('#winNew').onclick = () => { play('tap'); newSetup(game.teams.map(t => t.name)); show('teams'); renderTeams(); };
+$('#winHome').onclick = () => { play('tap'); game = null; store(LS_GAME, null); goMenu(); };
+
+/* ================== PWA: офлайн-режим ================== */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+/* ================== Старт ================== */
+applyTheme(settings.theme);
+syncToggles();
+})();
+</script>
+</body>
+</html>
